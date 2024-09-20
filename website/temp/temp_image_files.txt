@@ -1,0 +1,3 @@
+this folder will store the temp image files
+you can clean it manually
+this temp image will be used to fine tuning modules
