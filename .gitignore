@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environment
+venv/
+env/
+*.env
+
+# IDE files
+.vscode/
+.idea/
+
+# Temporary files
+*.log
+*.tmp
+
+# Model files (if they're large)
+*.pth
+*.ckpt
+
+# Data files
+*.csv
+*.json
+*.db
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+handwriting_ai_recognition/source
+handwriting_ai_recognition/website/static
+handwriting_ai_recognition/website/temp
+handwriting_ai_recognition/test

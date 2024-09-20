@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handwriting Recognition</title>
+    <style>
+
+        h1 {
+            text-align: center;
+            color: #ffffffd8; /* 添加这行来更改标题颜色 */
+            margin-top: 20px;
+            margin-bottom: 30px;
+            background-color: #aeaeae; /* 浅灰色背景 */
+            padding: 10px 0; /* 上下添加内边距 */
+            /* border-top: 5px solid #ddd; 顶部边框 */
+            /* border-bottom: 5px solid #ddd; 底部边框 */
+            border-radius: 10px; /* 添加圆角 */
+        }
+
+        h3 {
+            color: #2c3e50;
+            font-size: 24px;
+            margin-top: 10px;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 3px solid #3498db;
+        }
+
+        h4 {
+            color: #34495e;
+            font-size: 18px;
+            margin-top: 10px;
+            margin-bottom: 10px;
+            padding-left: 10px;
+            border-left: 3px solid #e74c3c;
+        }
+
+        .container {
+            display: flex;
+            justify-content: center; /* 将内容居中 */
+            gap: 10%; /* 在左右两块之间添加间距 */
+            max-width: 1200px; /* 限制最大宽度 */
+            margin: 0 auto; /* 居中整个容器 */
+            padding: 0 20px; /* 添加一些左右内边距 */
+        }
+        .left-side, .right-side {
+            width: 45%; /* 调整宽度，让两边更靠近中间 */
+            max-width: 500px; /* 限制最大宽度 */
+        }
+        #visualizedImage, .line-image {
+            max-width: 100%;
+            height: auto;
+        }
+        .line-container {
+            margin-bottom: 20px;
+        }
+        /* 现有的样式 */
+        .loader-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5); /* 半透明背景 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000; /* 确保在最上层 */
+            display: none; /* 默认隐藏 */
+        }
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .button-container {
+            margin-top: 10px;
+        }
+        .correction-container {
+            margin-top: 10px;
+        }
+        .correction-input {
+            width: 100%;
+            padding: 5px;
+        }
+        .accepted {
+            background-color: #e6ffe6;
+        }
+        .corrected {
+            background-color: #fff0e6;
+        }
+        .pending {
+            background-color: #ffffff;
+        }
+        #submit-all-btn {
+            margin-top: 10px;
+            margin-bottom: 10px;
+            padding: 10px 10px;
+            font-size: 15px;
+        }
+        #result-display-area {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        #result-display-area ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        #result-display-area li {
+            margin-bottom: 10px;
+        }
+        .accept-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #lineImages {
+            max-height: 600px;
+            border: 1px solid #ddd;
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .fixed-header {
+            position: sticky;
+            top: 0;
+            background-color: white;
+            z-index: 1;
+            padding: 10px 20px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .scrollable-content {
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .line-container {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+        }
+
+        /* 美化滚动条 */
+        #lineImages::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        #lineImages::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        #lineImages::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 5px;
+        }
+
+        #lineImages::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+
+        #visualizedImage {
+        max-width: 100%;
+        height: auto;
+        border-radius: 10px; /* 添加圆角 */
+        border: 5px solid #4d4c4c; /* 添加边框 */
+        box-shadow: 0 0 10px rgba(0,0,0,0.1); /* 添加轻微阴影效果 */
+    }
+
+    </style>
+</head>
+<body>
+    <div id="loaderContainer" class="loader-container">
+        <div class="loader"></div>
+    </div>
+    <h1>Handwriting Recognition</h1>
+    <div class="container">
+        <div class="left-side">
+            <form id="uploadForm" enctype="multipart/form-data">
+                <input type="file" name="file" accept="image/*" required>
+                <button type="submit">Upload and Recognize</button>
+            </form>
+            <div class="mb-3">
+                <label for="kernelWidthSlider" class="form-label">Kernel Width: <span id="kernelWidthValue">100</span></label>
+                <input type="range" class="form-range" id="kernelWidthSlider" min="50" max="200" value="100" step="5">
+            </div>
+            <div id="lineImages">
+                <div class="fixed-header">
+                    <!-- <h3>Recognition Results:</h3> -->
+                    <!-- <button id="submit-all-btn">Submit All Results</button> -->
+                </div>
+                <div class="scrollable-content">
+                    <!-- Line containers will be added here -->
+                </div>
+            </div>
+
+        </div>
+        <div class="right-side">
+            <h2>Visualized Text Regions</h2>
+            <div id="result-display-area"></div>
+            <img id="visualizedImage" alt="Visualized Text Regions" style="display: none; margin-top: 20px;">
+            
+
+        </div>
+    </div>
+    <div id="errorMessage" style="color: red;"></div>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+
+            const loaderContainer = document.getElementById('loaderContainer');
+            const errorMessage = document.getElementById('errorMessage');
+            const lineImagesDiv = document.getElementById('lineImages');
+            const visualizedImage = document.getElementById('visualizedImage');
+            const resultDisplayArea = document.getElementById('result-display-area');
+
+            const kernelWidth = document.getElementById('kernelWidthSlider').value;
+            formData.append('kernel_width', kernelWidth);
+
+            loaderContainer.style.display = 'flex';
+            errorMessage.textContent = '';
+            lineImagesDiv.innerHTML = '';
+            visualizedImage.style.display = 'none';
+            
+            // 清空右侧的 Recognition Results 内容
+            if (resultDisplayArea) {
+                resultDisplayArea.innerHTML = '';
+                resultDisplayArea.style.display = 'none';
+            }
+
+            try {
+                const response = await fetch('/handwriting', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                console.log('Parsed JSON data:', data);
+                lineImagesDiv.innerHTML = `
+                    <div class="fixed-header">
+                        <h3>Recognition Results:</h3>
+                    </div>
+                    <div class="scrollable-content"></div>
+                `;
+
+                const scrollableContent = lineImagesDiv.querySelector('.scrollable-content');
+
+                // 添加提交所有结果的按钮
+                const submitAllButton = document.createElement('button');
+                submitAllButton.textContent = 'Submit All Results';
+                submitAllButton.id = 'submit-all-btn';
+                lineImagesDiv.appendChild(submitAllButton);
+
+                // 显示每行图像及其识别结果
+                data.line_images.forEach((lineImage) => {
+                    const lineContainer = document.createElement('div');
+                    lineContainer.className = 'line-container';
+                    
+                    const recognizedImagePath = (data.file_directory + "\\line_" + lineImage.line_num + ".jpg")
+                                                .replace(/\//g, '\\')  // 将所有正斜杠替换为反斜杠
+                                                // .replace(/^D:/, 'd:');  // 将开头的 'D:' 替换为 'd:'
+
+                    console.log('Recognized Image Path:', recognizedImagePath);
+
+                    const recognizedText = data.recognizer_result[recognizedImagePath] || 'No text recognized';
+
+                    lineContainer.innerHTML = `
+                        <h4>Line ${lineImage.line_num}</h4>
+                        <img class="line-image" src="data:image/jpeg;base64,${lineImage.image}" alt="Line ${lineImage.line_num}">
+                        <p><strong>Recognized Text:</strong> <span class="recognized-text">${recognizedText}</span></p>
+                        <div class="button-container">
+                            <button class="accept-btn" tabindex="0">Accept</button>
+                            <button class="correct-btn">Correct</button>
+                        </div>
+                        <div class="correction-container" style="display: none;">
+                            <input type="text" class="correction-input" value="${recognizedText}">
+                        </div>
+                    `;
+                    lineContainer.dataset.imagePath = recognizedImagePath;
+                    scrollableContent.appendChild(lineContainer);
+                });
+
+                // 添加事件监听器
+                addEventListeners();
+
+                // 显示可视化图像
+                if (data.visualized_image) {
+                    visualizedImage.src = `data:image/jpeg;base64,${data.visualized_image}`;
+                    visualizedImage.style.display = 'block';
+                }
+
+                // 创建结果显示区域
+                const resultDisplayArea = document.createElement('div');
+                resultDisplayArea.id = 'result-display-area';
+                resultDisplayArea.style.display = 'none';
+                document.querySelector('.right-side').appendChild(resultDisplayArea);
+
+                // 为提交按钮添加事件监听器
+                submitAllButton.addEventListener('click', async () => {
+                    const results = collectResults();
+                    try {
+                        const response = await fetch('/submit_results', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(results),
+                        });
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        const data = await response.json();
+                        console.log('Results processed successfully:', data);
+                        
+                        // 显示结果
+                        displayResults(data.results);
+                    } catch (error) {
+                        console.error('Error submitting results:', error);
+                        alert('Error submitting results. Please try again.');
+                    }
+                });
+
+            } catch (error) {
+                console.error('Error:', error);
+                errorMessage.textContent = 'An error occurred during recognition. Please try again.';
+            } finally {
+                loaderContainer.style.display = 'none';
+            }
+        });
+
+        function addEventListeners() {
+            const acceptButtons = document.querySelectorAll('.accept-btn');
+            const correctButtons = document.querySelectorAll('.correct-btn');
+            const correctionInputs = document.querySelectorAll('.correction-input');
+
+            acceptButtons.forEach(btn => {
+                btn.addEventListener('click', handleAccept);
+                btn.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        handleAccept.call(this, e);
+                    }
+                });
+            });
+
+            correctButtons.forEach(btn => {
+                btn.addEventListener('click', handleCorrect);
+            });
+
+            correctionInputs.forEach(input => {
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        handleAccept.call(this.closest('.line-container').querySelector('.accept-btn'), e);
+                    }
+                });
+            });
+        }
+
+        function handleAccept(e) {
+            const lineContainer = e.target.closest('.line-container');
+            lineContainer.classList.add('accepted');
+            lineContainer.classList.remove('corrected');
+            
+            // 禁用接受按钮
+            const acceptBtn = lineContainer.querySelector('.accept-btn');
+            acceptBtn.disabled = true;
+            
+            // 隐藏修改容器
+            const correctionContainer = lineContainer.querySelector('.correction-container');
+            if (correctionContainer) {
+                correctionContainer.style.display = 'none';
+            }
+
+            // 添加数据属性来存储图片地址
+            const imageSrc = lineContainer.querySelector('.line-image').src;
+            lineContainer.dataset.imageSrc = imageSrc;
+        }
+
+        function handleCorrect(e) {
+            const lineContainer = e.target.closest('.line-container');
+            const correctionContainer = lineContainer.querySelector('.correction-container');
+            correctionContainer.style.display = 'block';
+            lineContainer.classList.remove('accepted');
+            lineContainer.classList.add('corrected');
+            
+            // 重新启用接受按钮
+            const acceptBtn = lineContainer.querySelector('.accept-btn');
+            acceptBtn.disabled = false;
+
+            // 聚焦到修改输入框
+            const correctionInput = correctionContainer.querySelector('.correction-input');
+            correctionInput.focus();
+        }
+
+        function collectResults() {
+            const results = [];
+            const lineContainers = document.querySelectorAll('.line-container');
+            lineContainers.forEach((container, index) => {
+                const recognizedText = container.querySelector('.recognized-text').textContent;
+                const status = container.classList.contains('accepted') ? 'accepted' : 
+                               container.classList.contains('corrected') ? 'corrected' : 'pending';
+                // const imageSrc = container.dataset.imageSrc || ''; // 获取图片内容
+                const imagePath = container.dataset.imagePath || ''; // 获取图片路径
+                
+                results.push({
+                    line_num: index + 1,
+                    text: recognizedText,
+                    status: status,
+                    image_path: imagePath, // 添加图片path
+                });
+
+            });
+            // console.log(results)
+            return results;
+        }
+
+        function displayResults(results) {
+            const resultDisplayArea = document.getElementById('result-display-area');
+            resultDisplayArea.innerHTML = '<h3>Recognition Results:</h3>';
+            resultDisplayArea.style.display = 'block';
+
+            const resultList = document.createElement('ul');
+            results.forEach(result => {
+                const listItem = document.createElement('li');
+                listItem.textContent = `${result.text}`;
+                resultList.appendChild(listItem);
+            });
+
+            resultDisplayArea.appendChild(resultList);
+        }
+
+        async function submitResults() {
+            const results = collectResults();
+            try {
+                const response = await fetch('/submit_results', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(results),
+                });
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                console.log('Results processed successfully:', data);
+                
+                // 显示结果
+                displayResults(data.results);
+            } catch (error) {
+                console.error('Error submitting results:', error);
+                alert('Error submitting results. Please try again.');
+            }
+        }
+
+        // 确保在页面加载完成后添加事件监听器
+        document.addEventListener('DOMContentLoaded', () => {
+            const submitAllButton = document.getElementById('submit-all-btn');
+            if (submitAllButton) {
+                submitAllButton.addEventListener('click', submitResults);
+            }
+
+            // 添加 kernelWidthSlider 的事件监听器
+            const kernelWidthSlider = document.getElementById('kernelWidthSlider');
+            if (kernelWidthSlider) {
+                kernelWidthSlider.addEventListener('input', function() {
+                    document.getElementById('kernelWidthValue').textContent = this.value;
+                });
+            }
+
+        });
+
+        // Add this code to update the displayed kernel width value
+        document.getElementById('kernelWidthSlider').addEventListener('input', function() {
+            var kernelWidth = parseInt(this.value, 10);
+            document.getElementById('kernelWidthValue').textContent = kernelWidth;
+        });
+        
+       
+    </script>
+</body>
+</html>
